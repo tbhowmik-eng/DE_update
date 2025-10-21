@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Online Driver Education — Analytics Prototype (Single File v3.5)</title>
+  <style>
+    :root{--bg:#fafafa;--fg:#111827;--muted:#6b7280;--card:#ffffff;--border:#e5e7eb;--accent:#2563eb;}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--fg)}
+    header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);z-index:5}
+    .container{max-width:1100px;margin:0 auto;padding:16px}
+    h1{font-size:22px;margin:8px 0}
+    h2{font-size:18px;margin:0 0 8px}
+    .row{display:flex;gap:16px;flex-wrap:wrap}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap: 12px;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin:16px 0;box-shadow:0 1px 0 rgba(0,0,0,.03)}
+    .kpi{font-weight:700;font-size:26px;margin-top:4px}
+    .label{font-size:12px;color:var(--muted)}
+    .muted{color:var(--muted)}
+    .small-muted{color:#6b7280; font-size:12px;}
+    .tag{display:inline-block;border:1px solid var(--border);padding:3px 8px;border-radius:999px;font-size:12px;color:#374151;background:#fff}
+    .btn{display:inline-block;border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px;font-weight:600;cursor:pointer}
+    .btn:hover{border-color:#cbd5e1}
+    select,input{border:1px solid var(--border);padding:8px;border-radius:10px}
+    input{flex:1}
+    .select-compact{ padding: 6px 8px; border-radius: 8px; border:1px solid #e5e7eb; }
+    .delta { display:inline-block; padding:2px 8px; border-radius:12px; font-size:12px; margin-left:8px; }
+    .delta.up { background:#dcfce7; }
+    .delta.down { background:#fee2e2; }
+    .delta.neutral { background:#e5e7eb; }
+    /* Bars */
+    .kpi-bar { height: 8px; border-radius: 6px; background: #eee; margin-top: 6px; overflow: hidden; }
+    .kpi-bar > div { height: 100%; width: 0; }
+    .band-low { background: #fca5a5; }
+    .band-mod { background: #fde68a; }
+    .band-high { background: #86efac; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <div>
+          <h1>Online Driver Education — Analytics Prototype</h1>
+          <div class="muted" style="font-size:13px">Single-file build (v3.5)</div>
+          <div style="margin-top:8px">
+            <span class="tag">state snapshot</span>
+            <span class="tag">ask the tool</span>
+            <span class="tag">compare</span>
+            <span class="tag">samples</span>
+            <span class="tag">definitions</span>
+          </div>
+        </div>
+        <div class="row">
+          <select id="stateSelect"></select>
+          <button id="resetBtn" class="btn">Reset to CA</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <h2>Ask the Tool</h2>
+      <div class="row">
+        <input id="q" placeholder='Try: "samples in Texas", "online samples OR", "CI for engagement CA", "compare CA vs OR preparedness"' />
+        <button id="askBtn" class="btn" style="margin-right:8px">Ask</button>
+        <button id="downloadCsvBtn" class="btn">Download CSV</button>
+        <button id="downloadCsvAllBtn" class="btn" style="margin-left:8px">Download All States CSV</button>
+      </div>
+      <div id="answer" style="margin-top:8px" class="muted">—</div>
+    </div>
+
+    <div class="card">
+      <h2>State Snapshot</h2>
+      <div class="row" style="align-items:center">
+        <div class="muted">Selected state: <strong id="stateName">—</strong></div>
+      </div>
+
+      <div class="grid3" style="margin-top:8px">
+        <div>
+          <div class="label">Satisfaction</div>
+          <div id="kpiSatisfaction" class="kpi">—</div>
+          <div class="kpi-bar"><div id="kpiSatisfactionBar"></div></div>
+          <div id="kpiSatisfactionMeta" class="small-muted"></div>
+        </div>
+        <div>
+          <div class="label">Engagement <span title="Average self-reported attentiveness, participation, and on-task time during driver education (0–100).">ⓘ</span></div>
+          <div id="kpiEngagement" class="kpi">—</div>
+          <div class="kpi-bar"><div id="kpiEngagementBar"></div></div>
+          <div id="kpiEngagementMeta" class="small-muted"></div>
+        </div>
+        <div>
+          <div class="label">Preparedness <span title="Learner confidence in passing the permit test and handling basic driving maneuvers (0–10).">ⓘ</span></div>
+          <div id="kpiPreparedness" class="kpi">—</div>
+          <div class="kpi-bar"><div id="kpiPreparednessBar"></div></div>
+          <div id="kpiPreparednessMeta" class="small-muted"></div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <div>
+          <div class="label">Online Share (%)</div>
+          <div id="kpiOnlineShare" class="kpi">—</div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <div>
+          <div class="label">Survey Sample (n)</div>
+          <div id="kpiSample" class="kpi">—</div>
+        </div>
+        <div>
+          <div class="label">Online Sample (n)</div>
+          <div id="kpiSampleOnline" class="kpi">—</div>
+        </div>
+        <div>
+          <div class="label">In-Person Sample (n)</div>
+          <div id="kpiSampleInperson" class="kpi">—</div>
+        </div>
+        <div>
+          <div class="label">Youth Sample (n)</div>
+          <div id="kpiSampleYouth" class="kpi">—</div>
+        </div>
+        <div>
+          <div class="label">Adult Sample (n)</div>
+          <div id="kpiSampleAdult" class="kpi">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Compare States</h2>
+      <div class="grid2">
+        <div>
+          <label class="small-muted">Primary state (left):</label><br/>
+          <select id="cmpPrimary" class="select-compact"></select>
+        </div>
+        <div>
+          <label class="small-muted">Compare to (right):</label><br/>
+          <select id="cmpSecondary" class="select-compact"></select>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <div><strong>Satisfaction</strong> <span id="deltaSatisfaction" class="delta neutral">–</span></div>
+        <div><strong>Engagement</strong> <span id="deltaEngagement" class="delta neutral">–</span></div>
+        <div><strong>Preparedness</strong> <span id="deltaPreparedness" class="delta neutral">–</span></div>
+        <div class="small-muted" style="margin-top:6px;">Δ shown as (Primary − Secondary).</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Interpretation Guide</h2>
+      <ul>
+        <li><strong>Engagement (0–100)</strong>: <em>Low</em>: 0–59, <em>Moderate</em>: 60–74, <em>High</em>: 75–100.</li>
+        <li><strong>Preparedness (0–10)</strong>: <em>Low</em>: 0–3, <em>Moderate</em>: 4–6, <em>High</em>: 7–10.</li>
+        <li><strong>Satisfaction (0–100)</strong>: Same banding as Engagement.</li>
+      </ul>
+      <p class="muted">Tip: Use “Ask the Tool” — try “explain engagement 82”, “what is preparedness?”, or “online samples in WA”.</p>
+    </div>
+
+    <div class="card">
+      <h2>Methodology & FAQ</h2>
+      <ul>
+        <li><strong>Confidence Intervals:</strong> MOE ≈ 1.96 × √(p(1−p)/n). For Preparedness (0–10), we first scale to 0–100.</li>
+        <li><strong>Bands:</strong> Low (≤59), Moderate (60–74), High (≥75) for 0–100 metrics; 0–3/4–6/7–10 for Preparedness.</li>
+        <li><strong>Samples:</strong> Total n split into Online and In-Person using each state’s Online Share. Youth/Adult split uses a placeholder <em>youthShare</em> you can adjust later.</li>
+        <li><strong>Interpret:</strong> Ask things like “MOE in TX”, “CI for engagement CA”, or “compare CA vs OR engagement”.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Multi-State Comparison</h2>
+      <div class="muted">Future work: charts / league tables.</div>
+    </div>
+
+    <div class="muted" style="margin:12px 0">
+      Perception indicators are scaled 0–100 (Satisfaction, Engagement) and 0–10 (Preparedness Confidence). “Online Share” is an estimated percentage of classroom DE completed online.
+      <p class="muted"><strong>Definitions:</strong> Satisfaction = overall experience rating with the course; Engagement = attentiveness/participation and on-task time; Preparedness = self-rated confidence to pass the permit test and perform core maneuvers like scanning, signaling, lane changes, and stopping distance.</p>
+    </div>
+  </main>
+
+  <script>
+    // -----------------------------
+    // Minimal demo dataset (extend as needed)
+    // -----------------------------
+    const DATA = {
+      CA: { name: "California", satisfaction: 82, engagement: 78, preparedness: 7.6, onlineShare: 65 },
+      TX: { name: "Texas",      satisfaction: 77, engagement: 73, preparedness: 7.1, onlineShare: 58 },
+      FL: { name: "Florida",    satisfaction: 75, engagement: 70, preparedness: 6.9, onlineShare: 54 },
+      OR: { name: "Oregon",     satisfaction: 80, engagement: 76, preparedness: 7.4, onlineShare: 62 },
+      WA: { name: "Washington", satisfaction: 79, engagement: 74, preparedness: 7.2, onlineShare: 59 },
+      NY: { name: "New York",   satisfaction: 76, engagement: 71, preparedness: 7.0, onlineShare: 55 }
+    };
+    const STATES = Object.keys(DATA);
+
+    // --- v3.3 additions ---
+    (function initSamples(){
+      // Default survey sample counts (edit as needed)
+      const custom = { CA: 1200, TX: 1100, FL: 950, OR: 620, VA: 700, WA: 580, NY: 650, PA: 640, OH: 610, GA: 590 };
+      STATES.forEach(s => {
+        if (typeof DATA[s].samples === 'undefined') {
+          DATA[s].samples = custom[s] || 500;
+        }
+      });
+    })();
+
+    // Wire state dropdowns
+    const stateSel = document.getElementById("stateSelect");
+    STATES.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c; opt.textContent = DATA[c].name;
+      stateSel.appendChild(opt);
+    });
+
+    function bandClassFor(metric, value){
+      let band = 'band-low';
+      if (metric === 'preparedness'){
+        if (value >= 7) band = 'band-high';
+        else if (value >= 4) band = 'band-mod';
+      } else {
+        if (value >= 75) band = 'band-high';
+        else if (value >= 60) band = 'band-mod';
+      }
+      return band;
+    }
+
+    function setBar(metricId, metricName, value, n){
+      const bar = document.getElementById(metricId + 'Bar');
+      const meta = document.getElementById(metricId + 'Meta');
+      if (!bar || !meta) return;
+      let scale100 = value;
+      if (metricName === 'preparedness') scale100 = Math.min(100, Math.max(0, (value/10)*100));
+      const p = Math.min(0.999, Math.max(0.001, scale100/100));
+      const moe = n > 0 ? 1.96 * Math.sqrt(p*(1-p)/n) * 100 : 0;
+      const ciLow = Math.max(0, scale100 - moe);
+      const ciHigh = Math.min(100, scale100 + moe);
+      bar.className = '';
+      const klass = bandClassFor(metricName, value);
+      bar.classList.add(klass);
+      bar.style.width = scale100 + '%';
+      meta.textContent = `≈95% CI: ${ciLow.toFixed(0)}–${ciHigh.toFixed(0)} (MOE ±${moe.toFixed(0)} pts) | n=${n.toLocaleString()}`;
+    }
+
+    function sampleBreakdownFor(code) {
+      const d = DATA[code];
+      const total = Number(d.samples || 0);
+      const onlinePct = typeof d.onlineShare === 'number' ? d.onlineShare : 50;
+      const online = Math.round(total * (onlinePct / 100));
+      const inperson = Math.max(0, total - online);
+      return { total, online, inperson, onlinePct };
+    }
+
+    // --- v3.5 youth share (placeholder) ---
+    (function initYouthShare(){
+      const custom = { CA: 0.62, TX: 0.58, FL: 0.55, OR: 0.60, WA: 0.57, NY: 0.54, PA: 0.53, OH: 0.52, GA: 0.56, VA: 0.55 };
+      STATES.forEach(s => {
+        if (typeof DATA[s].youthShare === 'undefined') DATA[s].youthShare = custom[s] ?? 0.55;
+      });
+    })();
+    function sampleBreakdownYouthAdult(code){
+      const d = DATA[code];
+      const br = sampleBreakdownFor(code);
+      const y = Math.round(br.total * (d.youthShare ?? 0.55));
+      const a = Math.max(0, br.total - y);
+      return { youth: y, adult: a, total: br.total, online: br.online, inperson: br.inperson };
+    }
+
+    function setState(code){
+      const d = DATA[code];
+      const br = sampleBreakdownFor(code);
+      const ya = sampleBreakdownYouthAdult(code);
+
+      document.getElementById('stateName').textContent = d.name;
+      document.getElementById('kpiSatisfaction').textContent = (d.satisfaction ?? 0).toString();
+      document.getElementById('kpiEngagement').textContent   = (d.engagement ?? 0).toString();
+      document.getElementById('kpiPreparedness').textContent = (d.preparedness ?? 0).toString();
+      document.getElementById('kpiOnlineShare').textContent  = (d.onlineShare ?? 0).toString();
+
+      const sampleEl = document.getElementById('kpiSample');
+      if (sampleEl) sampleEl.textContent = br.total.toLocaleString();
+      const elOn = document.getElementById('kpiSampleOnline');
+      const elIp = document.getElementById('kpiSampleInperson');
+      if (elOn) elOn.textContent = br.online.toLocaleString();
+      if (elIp) elIp.textContent = br.inperson.toLocaleString();
+      const elY = document.getElementById('kpiSampleYouth');
+      const elA = document.getElementById('kpiSampleAdult');
+      if (elY) elY.textContent = ya.youth.toLocaleString();
+      if (elA) elA.textContent = ya.adult.toLocaleString();
+
+      setBar('kpiSatisfaction', 'satisfaction', d.satisfaction ?? 0, br.total);
+      setBar('kpiEngagement', 'engagement', d.engagement ?? 0, br.total);
+      setBar('kpiPreparedness', 'preparedness', d.preparedness ?? 0, br.total);
+
+      // Fill compare selectors if empty
+      const pSel = document.getElementById('cmpPrimary');
+      const sSel = document.getElementById('cmpSecondary');
+      if (pSel && pSel.options.length === 0){
+        STATES.forEach(c => { const opt = document.createElement('option'); opt.value=c; opt.text=DATA[c].name; pSel.add(opt); });
+        pSel.value = code;
+      }
+      if (sSel && sSel.options.length === 0){
+        STATES.forEach(c => { const opt = document.createElement('option'); opt.value=c; opt.text=DATA[c].name; sSel.add(opt); });
+        sSel.value = 'OR';
+      }
+      updateCompareDeltas();
+      window._currentCode = code;
+    }
+
+    function deltaChip(elId, primary, secondary){
+      const el = document.getElementById(elId);
+      if (!el) return;
+      const diff = (primary - secondary);
+      const sign = diff > 0 ? '+' : (diff < 0 ? '−' : '±');
+      el.textContent = `${sign}${Math.abs(diff).toFixed(1)}`;
+      el.className = 'delta ' + (diff>0 ? 'up' : diff<0 ? 'down' : 'neutral');
+    }
+
+    function updateCompareDeltas(){
+      const pSel = document.getElementById('cmpPrimary');
+      const sSel = document.getElementById('cmpSecondary');
+      if (!pSel || !sSel) return;
+      const p = pSel.value || 'CA';
+      const s = sSel.value || 'OR';
+      const dp = DATA[p], ds = DATA[s];
+      deltaChip('deltaSatisfaction', dp.satisfaction ?? 0, ds.satisfaction ?? 0);
+      deltaChip('deltaEngagement', dp.engagement ?? 0, ds.engagement ?? 0);
+      deltaChip('deltaPreparedness', dp.preparedness ?? 0, ds.preparedness ?? 0);
+    }
+    document.addEventListener('change', function(e){
+      if (e.target && (e.target.id === 'cmpPrimary' || e.target.id === 'cmpSecondary')){
+        updateCompareDeltas();
+      }
+    });
+
+    // --- Ask the Tool ---
+    (function attachAskHandler(){
+      const input = document.getElementById('q');
+      const btn = document.getElementById('askBtn');
+      const answer = document.getElementById('answer');
+
+      function tokens(txt){ return txt.toLowerCase().split(/\W+/).filter(Boolean); }
+      function findStateInText(txt){
+        const tks = tokens(txt);
+        for (const code of STATES) {
+          const name = DATA[code].name.toLowerCase();
+          if (tks.includes(code.toLowerCase()) || txt.toLowerCase().includes(name)) return code;
+        }
+        return window._currentCode || 'CA';
+      }
+      function interpretBand(metric, value) {
+        if (metric === 'preparedness') { if (value <= 3) return 'Low'; if (value <= 6) return 'Moderate'; return 'High'; }
+        if (value <= 59) return 'Low'; if (value <= 74) return 'Moderate'; return 'High';
+      }
+      function definitionFor(term){
+        term = term.toLowerCase();
+        if (term.includes('prepared')) return 'Preparedness = self-rated confidence to pass the permit test and perform core maneuvers (0–10).';
+        if (term.includes('engage')) return 'Engagement = attentiveness, participation, and on-task time during driver education (0–100).';
+        if (term.includes('satisf')) return 'Satisfaction = overall experience rating with the course (0–100).';
+        return null;
+      }
+      function explainValue(metric, val){
+        const band = interpretBand(metric, val);
+        const scale = (metric === 'preparedness') ? '0–10' : '0–100';
+        return `${metric[0].toUpperCase()+metric.slice(1)} ${val} (${scale}) is considered **${band}**.`;
+      }
+      function parseExplain(txt){
+        const m1 = txt.match(/(engagement|preparedness|satisfaction)\D+(\d{1,3})/i);
+        if (m1){
+          const metric = m1[1].toLowerCase();
+          let val = parseInt(m1[2], 10);
+          if (metric === 'preparedness' && val > 10) val = 10;
+          if (metric !== 'preparedness' && val > 100) val = 100;
+          return explainValue(metric, val);
+        }
+        return null;
+      }
+      function ciText(metric, code){
+        const d = DATA[code];
+        const br = sampleBreakdownFor(code);
+        let value = d[metric] ?? 0;
+        let scale100 = value;
+        if (metric === 'preparedness') scale100 = Math.min(100, Math.max(0, (value/10)*100));
+        const p = Math.min(0.999, Math.max(0.001, scale100/100));
+        const moe = br.total>0 ? 1.96*Math.sqrt(p*(1-p)/br.total)*100 : 0;
+        const lo = Math.max(0, scale100 - moe), hi = Math.min(100, scale100 + moe);
+        if (metric === 'preparedness'){
+          const lo10 = (lo/100)*10, hi10 = (hi/100)*10, m10 = (moe/100)*10;
+          return `${d.name} Preparedness: ${value.toFixed(1)}/10; ≈95% CI ${lo10.toFixed(1)}–${hi10.toFixed(1)} (MOE ±${m10.toFixed(1)}) with n=${br.total.toLocaleString()}.`;
+        }
+        return `${d.name} ${metric[0].toUpperCase()+metric.slice(1)}: ${value.toFixed(0)}/100; ≈95% CI ${lo.toFixed(0)}–${hi.toFixed(0)} (MOE ±${moe.toFixed(0)} pts) with n=${br.total.toLocaleString()}.`;
+      }
+
+      function handleQuery(q){
+        const txt = q.toLowerCase();
+        const def = definitionFor(txt); if (def) return def;
+        const exp = parseExplain(txt); if (exp) return exp;
+
+        // samples
+        if (/\bsample(s)?\b/.test(txt) || /\bn\b/.test(txt)) {
+          // sub-groups
+          if (txt.includes('online')){
+            const code = findStateInText(txt); const br = sampleBreakdownFor(code);
+            return `${DATA[code].name}: online samples ≈ ${br.online.toLocaleString()} (online share ${br.onlinePct}%).`;
+          }
+          if (txt.includes('in-person') || txt.includes('in person') || txt.includes('inperson')){
+            const code = findStateInText(txt); const br = sampleBreakdownFor(code);
+            return `${DATA[code].name}: in-person samples ≈ ${br.inperson.toLocaleString()} (online share ${br.onlinePct}%).`;
+          }
+          if (txt.includes('youth')){
+            const code = findStateInText(txt); const ya = sampleBreakdownYouthAdult(code);
+            return `${DATA[code].name}: youth ≈ ${ya.youth.toLocaleString()}, adult ≈ ${ya.adult.toLocaleString()} (total ${ya.total.toLocaleString()}).`;
+          }
+          if (txt.includes('adult')){
+            const code = findStateInText(txt); const ya = sampleBreakdownYouthAdult(code);
+            return `${DATA[code].name}: adult ≈ ${ya.adult.toLocaleString()} (youth ≈ ${ya.youth.toLocaleString()}, total ${ya.total.toLocaleString()}).`;
+          }
+          const code = findStateInText(txt); const br = sampleBreakdownFor(code);
+          return `${DATA[code].name}: total n = ${br.total.toLocaleString()} (online ≈ ${br.online.toLocaleString()}, in-person ≈ ${br.inperson.toLocaleString()}).`;
+        }
+
+        // CI / MOE
+        if (txt.includes('ci') || txt.includes('confidence') || txt.includes('moe')){
+          const metric = (txt.includes('engage') ? 'engagement' : txt.includes('prepared') ? 'preparedness' : 'satisfaction');
+          const code = findStateInText(txt);
+          return ciText(metric, code);
+        }
+
+        // Compare
+        const m = txt.match(/compare\s+([A-Z]{2}|[a-zA-Z ]+)\s+(?:vs|to)\s+([A-Z]{2}|[a-zA-Z ]+)\s*(satisfaction|engagement|preparedness)?/i);
+        if (m){
+          function normState(s){
+            s = s.trim().toLowerCase();
+            for (const c of STATES){ if (c.toLowerCase()===s || DATA[c].name.toLowerCase()===s) return c; }
+            return null;
+          }
+          const a = normState(m[1]), b = normState(m[2]), metric = (m[3]||'satisfaction').toLowerCase();
+          if (a && b){
+            const A = DATA[a], B = DATA[b];
+            const va = A[metric] ?? 0, vb = B[metric] ?? 0;
+            const diff = (va - vb).toFixed(1);
+            return `Compare ${A.name} vs ${B.name} — ${metric}: ${va} vs ${vb} (Δ ${diff}).`;
+          }
+        }
+
+        return 'Try: "online samples in TX", "in-person samples OR", "explain engagement 82", "CI for preparedness CA", or "compare CA vs OR engagement".';
+      }
+
+      function onAsk(){
+        const qText = (input.value || '').trim();
+        if (!qText) { answer.textContent = 'Please type a question (e.g., "samples in Texas").'; return; }
+        answer.innerHTML = handleQuery(qText);
+      }
+      if (btn) btn.addEventListener('click', onAsk);
+      if (input) input.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') onAsk(); });
+    })();
+
+    // Download CSV (current state)
+    (function wireCsvButtons(){
+      const dl = document.getElementById('downloadCsvBtn');
+      const dlAll = document.getElementById('downloadCsvAllBtn');
+      function sampleBreakdownFor(code) {
+        const d = DATA[code];
+        const total = Number(d.samples || 0);
+        const onlinePct = typeof d.onlineShare === 'number' ? d.onlineShare : 50;
+        const online = Math.round(total * (onlinePct / 100));
+        const inperson = Math.max(0, total - online);
+        return { total, online, inperson, onlinePct };
+      }
+      function downloadCsv(){
+        const code = window._currentCode || 'CA';
+        const d = DATA[code];
+        const br = sampleBreakdownFor(code);
+        function getText(id){ const el = document.getElementById(id); return el ? el.textContent.trim() : ''; }
+        const row = {
+          state_code: code,
+          state_name: d.name,
+          satisfaction: getText('kpiSatisfaction'),
+          engagement: getText('kpiEngagement'),
+          preparedness: getText('kpiPreparedness'),
+          online_share_percent: d.onlineShare,
+          sample_total: br.total,
+          sample_online: br.online,
+          sample_inperson: br.inperson
+        };
+        const headers = Object.keys(row);
+        const csv = [headers.join(','), headers.map(h=>row[h]).join(',')].join('\n');
+        const blob = new Blob([csv], {type: 'text/csv'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `kpi_${code}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 500);
+      }
+      function downloadAllCsv(){
+        const headers = ['state_code','state_name','satisfaction','engagement','preparedness','online_share_percent','sample_total','sample_online','sample_inperson','youth_share','sample_youth','sample_adult'];
+        const rows = [headers.join(',')];
+        STATES.forEach(code => {
+          const d = DATA[code];
+          const br = sampleBreakdownFor(code);
+          const y = Math.round(br.total * (d.youthShare ?? 0.55));
+          const a = Math.max(0, br.total - y);
+          const row = [code, d.name, d.satisfaction ?? '', d.engagement ?? '', d.preparedness ?? '', d.onlineShare ?? '', br.total, br.online, br.inperson, d.youthShare ?? '', y, a];
+          rows.push(row.join(','));
+        });
+        const csv = rows.join('\n');
+        const blob = new Blob([csv], {type: 'text/csv'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'kpi_all_states.csv';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 500);
+      }
+      if (dl) dl.addEventListener('click', downloadCsv);
+      if (dlAll) dlAll.addEventListener('click', downloadAllCsv);
+    })();
+
+    document.getElementById('resetBtn').addEventListener('click', ()=>{ stateSel.value = 'CA'; setState('CA'); });
+    stateSel.addEventListener('change', ()=> setState(stateSel.value));
+
+    // init
+    stateSel.value = 'CA';
+    setState('CA');
+  </script>
+</body>
+</html>
